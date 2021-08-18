@@ -5,7 +5,7 @@
 #
 #
 # Julian Bischof
-# 2021.01.26
+# 2021.08.18
 # Encoding: ISO-8859-1
 #
 #Diese Samlung beinhaltet häufig genutzte Funktionen 
@@ -20,16 +20,42 @@
 # Add the following script part in the beginning of a script that needs
 # one or more ot the functions below.
 
+
 # #calls my function R-Script Locally!
 # source("D://OneDrive//OneDrive - Technological University Dublin//Bibliothek//Software//R//R_Functions//JBs_R_Functions.R")
 
+
 # #calls my function R-Script via GitHub!
-source_url()
+#
+# #UNCOMMENT!!!!!
+#
+# library(downloader)
+#
+# SHA <- sha_url('https://raw.githubusercontent.com/julianbischof/R---JBs-Data-Cleaning-Function-Collection/main/JBs_R_Functions.R')
+# SOURCE <- 'https://raw.githubusercontent.com/julianbischof/R---JBs-Data-Cleaning-Function-Collection/main/JBs_R_Functions.R'
+# downloader::source_url(SOURCE, sha = SHA, prompt=FALSE)
+# #downloader::source_url(SOURCE, prompt=FALSE)
+# print('Downloaded and using JBs_R_Functions')
+#
+        # downloader package!!!!:
+        # By default, source_url() checks the SHA-1 hash of the file.
+        # If it differs from the expected value, it will throw an error.
+        # The default expectation is that a hash is provided;
+        # if not, source_url() will prompt the user, asking if
+        # they are sure they want to continue, unless prompt=FALSE is used.
+        # In other words, if you use prompt=FALSE, it will run the remote code
+        # without checking the hash, and without asking the user.
+        # 
+        # The purpose of checking the hash is to ensure that the file has not changed.
+        # a source_url command with a hash is posted in a public forum, then others who
+        # source the URL (with the hash) are guaranteed to run the same code every time.
+        # This means that the author doesn't need to worry about the security of the
+        # server hosting the file. It also means that the users don't have to worry
+        # about the file being replaced with a damaged or maliciously-modified version.
+        # 
+        # To find the hash of a local file, use digest(). For a simple way to find the
+        # hash of a remote file, use sha_url().
 
-# UNCOMMENT!!!!!
-
-# If all functions are collected in this file here, they are therfore 
-# available everywhere where this file is called.
 
 
 #_______________________________________________________
