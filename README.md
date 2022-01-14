@@ -46,3 +46,6 @@ If you decide to proceed, you can connect insecurely as follows:
 
     source(pipe(paste("wget -O -", "https://github.com/enter/your/url.r", "--no-check-certificate")))
 
+ <a href="https://trackgit.com">
+<img src="https://us-central1-trackgit-analytics.cloudfunctions.net/token/ping/kye4j32j52qbuinxjgdk" alt="trackgit-views" />
+</a>
