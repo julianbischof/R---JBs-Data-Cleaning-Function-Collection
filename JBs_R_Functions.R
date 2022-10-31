@@ -5,7 +5,7 @@
 #
 #
 # Julian Bischof
-# 2021.08.18
+# 2022.10.31
 # Encoding: ISO-8859-1
 #
 #Diese Samlung beinhaltet häufig genutzte Funktionen 
@@ -69,6 +69,7 @@
 ### Writes the regression coefficients in a csv file
 ### Relative Importance of the Variables
 ### Comparison of Variation
+### Prepares Parallel Computing Environment for CARET model training
 
 ###
 
@@ -352,5 +353,22 @@ Compare.Variation <- function(x, y, namex, namey, histfrom, histto, histby){
   
   #Angabe der Abweichung in der Console
   abweichung
+}
+###
+
+
+#_______________________________________________________
+### Prepares Parallel Computing Environment for CARET model training ####
+# Sets the number of processors (All - 1) for training. 
+# Needs to be run befor caret training. # Initializing of Function for parallel training: amp_up_models()
+# Further the caret packege needs to have parallelization enabled in the control sequence: "allowParallel = TRUE,"
+amp_up_models <- function(){
+  library(parallel)
+  library(doParallel)
+  no_cores <- parallel::detectCores() - 1
+  #Leave one core available for Operating system
+  cluster <- makePSOCKcluster(no_cores)
+  registerDoParallel(cluster)
+  cat("Model amped and ready to go with:", no_cores, "cores. \n")
 }
 ###
