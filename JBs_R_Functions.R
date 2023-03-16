@@ -70,8 +70,16 @@
 ### Relative Importance of the Variables
 ### Comparison of Variation
 ### Prepares Parallel Computing Environment for CARET model training
+### Removes outliers of measured and calculated energy based on ratio, distribution and set percentile
+### Function for save hk_geb based calibration factors (ratio measured and calculated energy) with according hk_geb in dataframe
+### Function for save hk_geb_agg based calibration factors (ratio measured and calculated energy) with according hk_geb_agg in dataframe
+### Function for the extrapolation of full set (no missing) numerical values of the imuptated ENOB:DataNWG interview data set to the entire German non-domestic building stock (Mean, without error calculation)
 
 ###
+
+
+
+
 
 
 #_______________________________________________________
@@ -372,3 +380,199 @@ amp_up_models <- function(){
   cat("Model amped and ready to go with:", no_cores, "cores. \n")
 }
 ###
+
+
+
+
+#_______________________________________________________
+### Removes outliers of measured and calculated energy based on ratio, distribution and set percentile ####
+ratio.based.outlier.removal <- 
+function(dataset, 
+measurement, 
+calculation, 
+upper_outlier_percentile){
+# dataset: Dataframe of the dataset that is to be cleaned of outliers (removal of outlier cases)
+# measurement: Vector of measured value of that determines the reality
+# calculation: Vector of calculated value that generally tries to predict the measured value 
+# upper_outlier_percentile: Percentile that defines the value above which the matching m_to_c cases are removed e.g. 0.98 for the 98 percentile
+
+m_to_c <- as.double(measurement) / as.double(calculation) # define ratio
+
+# Number of objects with measured consumption greater than the calculated demand
+number_m_to_c_above <- length(m_to_c[m_to_c > 1])
+# Number of objects with measured consumption smaller than the calculated demand
+number_m_to_c_below <- length(m_to_c[m_to_c < 1])
+
+# Determination of the upper Faktor based on the upper_outlier_percentile
+Faktor <- sort(m_to_c)[upper_outlier_percentile * length(m_to_c)] # by representing value
+
+# Determination of the lower Faktor based on the upper "Faktor" based on the ratios of the sample above and below 1
+lowerFaktor <- (Faktor / number_m_to_c_above) * number_m_to_c_below
+
+EinsdurchFaktor <- 1 / lowerFaktor
+
+dataset$m_to_c <- m_to_c
+
+    # Generate subset of outliers for further analysis
+    dataset_outliers <- subset(dataset, m_to_c > Faktor | m_to_c < EinsdurchFaktor) # Generate subset of removed outliers
+    dataset_outliers$uk_geb_BE
+    dataset_outliers$m_to_c
+
+    Comparison <- as.data.frame(dataset_outliers$GebäudeID)
+    Comparison$uk_geb_BE <- dataset_outliers$uk_geb_BE
+    # Comparison$hk_geb_BE <- dataset_outliers$hk_geb_BE
+    Comparison$m_to_c <- dataset_outliers$m_to_c
+    Comparison$w_erz_art_et <- dataset_outliers$w_erz_art_et
+    Comparison # Summary of Outlier Values
+
+print("The plot shows the densitiy of the ratio between the measuerd values (M) and the calculated values (C) -> m_to_c.")
+ggplot(dataset, aes(x = m_to_c)) +
+    geom_density()
+
+# mean(m_to_c)
+
+dataset <- subset(dataset, m_to_c < Faktor) # Option for upper and lower unrealistic value removal above
+m_to_c <- m_to_c[m_to_c < Faktor]
+dataset <- subset(dataset, m_to_c > EinsdurchFaktor)
+m_to_c <- m_to_c[m_to_c > EinsdurchFaktor]
+
+print("The following cases have been removed from the dataset as outliers:")
+print(Comparison)
+
+return(dataset)
+}
+###
+
+
+
+
+#_______________________________________________________
+### Function for save hk_geb based calibration factors (ratio measured and calculated energy) with according hk_geb in dataframe ####
+simple.hk_geb.calibration <-
+function(hk_geb_BEs,
+      en_cons,
+      en_dem,
+      hk_geb_BE,
+      HRF) {
+  #..............................................................................................................
+  # Function for save factors with according hk_geb in dataframe.... 
+  # replace [1,] by i running the length of hk_geb_BEs.... 
+  #..............................................................................................................
+  
+  #..............................................................................................................
+  #......................
+  # Variable Definition:
+  #......................
+  # hk_geb: Vector listing the existing hk_geb of the buildings... This is the categorising variables seperating the 
+  #         sample in subsets according to hk_geb and determinging the correction factors.
+  # The following must have the same length, e.g. belonging from one dataframe
+  # en_cons: vector providing the measured energy consumption
+  # en_dem: vector providing the calculated energy demand
+  # hk_geb_BE: vector providing the hk_geb_BE class (clustering variable)
+  # HRF: vector providing the weighting factor (HRF) representing the representation of the case in the stock
+  #..............................................................................................................
+
+  length_hk_geb <- length(hk_geb_BEs)
+  simple_calibration_factors_hk_geb  <- data.frame(simple_cal_factor = (1:length_hk_geb))
+  simple_calibration_factors_hk_geb$hk_geb <- hk_geb_BEs
+  i = 0
+  for (hk_geb_BE_ in hk_geb_BEs){
+    i = i + 1
+                    simple_calibration_factors_hk_geb$hk_geb[i] <- as.vector(hk_geb_BE_)
+                    simple_calibration_factors_hk_geb$simple_cal_factor[i] <- 
+                      as.double(sum(en_cons[hk_geb_BE==hk_geb_BE_]*HRF[dt$hk_geb_BE==hk_geb_BE_]) / 
+                      sum(en_dem[hk_geb_BE==hk_geb_BE_]*HRF[hk_geb_BE==hk_geb_BE_]))
+  }
+  print(simple_calibration_factors_hk_geb)
+  return(simple_calibration_factors_hk_geb)
+}
+###
+
+
+
+#_______________________________________________________
+### Function for save hk_geb_agg based calibration factors (ratio measured and calculated energy) with according hk_geb_agg in dataframe ####
+simple.hk_geb_agg.calibration <-
+function(hk_geb_aggs,
+      en_cons,
+      en_dem,
+      hk_geb_agg,
+      HRF) {
+  #..............................................................................................................
+  # Function for save factors with according hk_geb_agg in dataframe.... 
+  # replace [1,] by i running the length of hk_geb_aggs.... 
+  #..............................................................................................................
+  
+  #..............................................................................................................
+  #......................
+  # Variable Definition:
+  #......................
+  # hk_geb_agg: Vector listing the existing hk_geb of the buildings... This is the categorising variables seperating the 
+  #         sample in subsets according to hk_geb and determinging the correction factors.
+  # The following must have the same length, e.g. belonging from one dataframe
+  # en_cons: vector providing the measured energy consumption
+  # en_dem: vector providing the calculated energy demand
+  # hk_geb_agg: vector providing the hk_geb_agg class (clustering variable)
+  # HRF: vector providing the weighting factor (HRF) representing the representation of the case in the stock
+  #..............................................................................................................
+
+  length_hk_geb_agg <- length(hk_geb_aggs)
+  simple_calibration_factors_hk_geb_agg  <- data.frame(simple_cal_factor = (1:length_hk_geb_agg))
+  simple_calibration_factors_hk_geb_agg$hk_geb_agg <- hk_geb_aggs
+  i = 0
+  for (hk_geb_agg_ in hk_geb_aggs){
+    i = i + 1
+                    simple_calibration_factors_hk_geb_agg$hk_geb_agg[i] <- as.vector(hk_geb_agg_)
+                    simple_calibration_factors_hk_geb_agg$simple_cal_factor[i] <- 
+                      as.double(sum(en_cons[hk_geb_agg==hk_geb_agg_]*HRF[dt$hk_geb_agg==hk_geb_agg_]) / 
+                      sum(en_dem[hk_geb_agg==hk_geb_agg_]*HRF[hk_geb_agg==hk_geb_agg_]))
+  }
+  print(simple_calibration_factors_hk_geb_agg)
+  return(simple_calibration_factors_hk_geb_agg)
+}
+###
+
+
+
+#_______________________________________________________
+### Function for the extrapolation of full set (no missing) numerical values of the 
+#   imuptated ENOB:DataNWG interview data set to the entire German non-domestic building stock
+#   (Mean, without error calculation) ####
+extrapolation.DE.quantitiy.energy <-
+      function(variable,
+               variable.name,
+               extrapol.factor,
+               subset.upscaling.factor) {
+        #..............................................................................................................
+        # Function for the extrapolation of full set (no missing) numerical values of the
+        # imuptated ENOB:DataNWG interview data set to the entire German non-domestic building stock
+        # (Mean, without deviation calculation)
+        #..............................................................................................................
+        
+        #..............................................................................................................
+        #......................
+        # Variable Definition:
+        #......................
+        # variable: is the value that is to extrapolated onto the entire German Non-Domestic Building Stock
+        # variable.name. Name of the variable
+        # extrapol.factor: is the weighting/extrapolation factor. In case of ENBO:DataNWG the HRF
+        # subset.upscaling.factor: Upscaling due to not considered (before removed) cases, such as the -555
+        #..............................................................................................................
+        
+        # weighting variable vector
+        variable.quantity.weighted = variable * extrapol.factor
+        
+        # sumation on stock and upscaling
+        DE.variable.kWh <-
+          sum(variable.quantity.weighted) * subset.upscaling.factor
+        
+        # unit transformation
+        DE.variable.MWh <- DE.variable.kWh / 1000
+        DE.variable.GWh <- DE.variable.MWh / 1000
+        DE.variable.TWh <- DE.variable.GWh / 1000
+        
+        # Return the result
+        print(paste("extrapolated ", variable.name, " in TWh/a:", DE.variable.TWh))
+        return(DE.variable.TWh)
+      }
+      ###
