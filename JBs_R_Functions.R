@@ -74,6 +74,11 @@
 ### Function for save hk_geb based calibration factors (ratio measured and calculated energy) with according hk_geb in dataframe
 ### Function for save hk_geb_agg based calibration factors (ratio measured and calculated energy) with according hk_geb_agg in dataframe
 ### Function for the extrapolation of full set (no missing) numerical values of the imuptated ENOB:DataNWG interview data set to the entire German non-domestic building stock (Mean, without error calculation)
+### Determination of correlation between categorical variables and numerical variables via ANOVA analysis
+### Repetitive linear regression application for determination the significant variables
+### Defininig stuetzstellen - correction factor values - based on distribtion
+### Defininig stuetzstellen klassen - classes of correction factor values - based on distribtion
+### Row dublication in data frame based on row weights to be applied for later weighting e.g. of machine learning model training
 
 ###
 
@@ -575,4 +580,479 @@ extrapolation.DE.quantitiy.energy <-
         print(paste("extrapolated ", variable.name, " in TWh/a:", DE.variable.TWh))
         return(DE.variable.TWh)
       }
-      ###
+###
+
+
+
+
+#_______________________________________________________
+### Determination of correlation between categorical variables and numerical variables via ANOVA analysis ####
+      anova_auswertung <- function(dt, x, y, target_name) {
+        args <- c(x, y)
+        if (length(args) > 1) {
+          f_str <- paste(target_name, " ~ ", paste(purrr::map(args, as_string), collapse = " * "), collapse = " ~ ") # generates anova formula arguments en_cons ~ combination of two variables (conected with *)
+        } else if (length(args) == 1) {
+          f_str <- paste(target_name, " ~ ", as.character(args), collapse = " ~ ") # in case of only one variable generate anova formula arguments en_cons ~ variable
+        } else {
+          stop("Fehler: Keine Variable genannt!")
+        }
+        f <- as.formula(f_str) # define f_str as formula
+        anova <- aov(f, data = dt) # run anova for defined fomula with data dt
+        s <- anova_summary(anova)
+        df <- as.data.table(s)
+        df <- df[p < 0.05, .(p)] # determination of significance via p-value (significance given if p < 0.05)
+        if (x == y) { # in case of variables are the same ... do not consider as significant
+          return(NULL)
+        }
+        if (nrow(df) > 0) { # for significant veriables and combinations of variables determine eta_squared
+          df <- effectsize::eta_squared(anova) %>% as.data.table() # eta_squared -> correlation coefficient between metric and categorical variable
+          df[, formel := f_str]
+
+          return(df[, 1:6]) # return data frame including significant variable combinations
+        }
+      }
+###
+
+
+
+#_______________________________________________________
+###  Repetitive linear regression application for determination the significant variables ####
+  significant.variables <- function(dt, target, target_vector) {
+    # dt - dataframe with target variable and predictor variables to be tested on their significance
+    # target - target variable
+
+
+    ### Klassisch linear, um relevante Spalten herauszufinden
+    i <- 0
+    form <- as.formula(paste(as.character(target), " ~ .", sep = "", collapse = ""))
+    # sig <- c(0.999, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1, rep(0.05,1000)) # Keeping Variables with significance P Value of 0.05
+    sig <- c(0.999, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1, 0.05, rep(0.01, 1000)) # Keeping Variables with significance P Value of 0.01
+    # sig <- c(0.999, rep(0.05,1000))
+
+    # 0.999 f(aeoeuesss)r NA-Koeffizienten elimination am Anfang (siehe in der Schleife);
+    # Danach wird in 0.1 er schritten die "signifikanz"erh(aeoeuesss)ht. Das hat zur Folge,
+    # dass erst einmal nur die wirklich nicht significanten varibalen raus fliegen
+    # Es erfolgt ein "aussieben" von nicht signifikaten Variblen mit stetiger Erh(aeoeuesss)hung des
+    # p-Value niveaus um am Ende nur noch die wirklich signifikanten Variablen zu bekommen.
+    # Dieses vorgehen verhindert, dass einige Variablen nicht direkt am Anfang rausfliegen
+    # obwohl sie bei Betrachtung im kleineren/signifikanteren Pool eine h(aeoeuesss)here Signifikanz aufweisen.
+    # Ziel ist es die Anzahl der ber(aeoeuesss)cksichtigten Variablen auf die Notwendigen zu reduzieren...
+    # was zum einen eine einfache Anwendung des sp(aeoeuesss)teren Calibrierungsmodells zul(aeoeuesss)sst und
+    # auch den Rechenaufwand reduziert
+    while (1 == 1) {
+      lm_2 <- lm(
+        data = dt,
+        form,
+        weights = weights
+      )
+      a <- data.frame(names(lm_2$coefficients))
+      row.names(a) <- a[, 1]
+      b <- data.frame(summary(lm_2)$coefficients)
+      b <- data.frame(b[, 4])
+      row.names(b) <- row.names(summary(lm_2)$coefficients)
+      d <- merge(a, b, by = "row.names", all = TRUE)
+      d <- d[, c(2, 3)]
+      colnames(d) <- c("Spalte", "PWert")
+      # Backticks entfernen
+      d$Spalte <- gsub("\`", "", d$Spalte, perl = TRUE)
+
+      d[which(d$Spalte == "(Intercept)"), ]$Spalte <- target # heist nur in d so, f(aeoeuesss)r Reihenfolgenbeibehaltung!, da beides an erster Stelle steht (en_cons wird nicht mit intercept gleich gesetzt. d.h. die n(aeoeuesss)chsten lm() l(aeoeuesss)ufe sind unbeeintr(aeoeuesss)chtigt)
+      # Pivotisieren
+      d <- d %>% pivot_wider(names_from = Spalte, values_from = PWert)
+      # Spaltenreihenfolge harmonisieren
+      d <- d[names(dt)] # namen von dt m(aeoeuesss)ssen zu d passen
+      # Entpivotisieren
+      d <- d %>% pivot_longer(cols = everything(), names_to = "Spalte", values_to = "PWert")
+
+      d$PWert <- as.double(d$PWert)
+      d$PWert <- ifelse(is.na(d$PWert), 1, d$PWert) # replace NA with 1
+
+      # Gr(aeoeuesss)(aeoeuesss)ten Wert bei Signifikanz bestimmen
+      i <- i + 1
+      m_index <- which(d$PWert > sig[i]) # im ersten Durchgang sig > 0.999 -> removes NAs; im zweiten Durchgang wird bei 0.9 gesiebt... siehe sig
+
+      v <- rep(TRUE, length(d$PWert))
+      v[m_index] <- FALSE
+      v[1] <- TRUE # intercept immer beibehalten. K(aeoeuesss)nnte FALSE sein, wenn intercept rausfliegt.
+
+      anz_col_vorher <- dim(dt)[2]
+      dt <- dt[, v, with = FALSE]
+      # add target varible in case it was eliminated in this process
+      if (target == "delta_b_v") {
+        dt$delta_b_v <- target_vector
+      }
+      if (target == "delta_b_v_percentage") {
+        dt$delta_b_v_percentage <- target_vector
+      }
+      if (target == "en_cons") {
+        dt$en_cons <- target_vector
+      }
+      anz_col_nachher <- dim(dt)[2]
+
+      print(paste("Entferne ", length(m_index), " Variablen. Runde:", i))
+
+      if (anz_col_vorher == anz_col_nachher) {
+        print(paste("Variablen auf Signifikanz geprueft. Runden:", i))
+        break # for Schleife verlassen
+      }
+    }
+
+
+
+    Relevant_Variables <- summary(lm_2)
+    print(summary(lm_2))
+
+    path <- getwd()
+    saveRDS(Relevant_Variables, file = paste(path, "//", "Relevant_Variables", ".RData", sep = ""))
+
+    library(xtable)
+    print(xtable(Relevant_Variables, type = "latex"), file = paste(path, "//", "Relevant_Variables", ".tex", sep = ""))
+
+
+    # RMSE
+    sqrt(mean(lm_2$residuals^2))
+    # Plot
+    dt$results <- lm_2$fitted.values
+    ggplot(data = dt, aes(x = results, y = en_cons)) +
+      geom_point() +
+      geom_function(fun = function(x) x)
+    dt$results <- NULL
+
+    return(dt)
+  }
+###
+
+#_______________________________________________________
+###  Defininig stuetzstellen - correction factor values - based on distribtion ####
+  def.stuetzstellen <- function(df, target, GitHub_Data_Access) {
+    # df - Dataframe with variables for later training in caret, that is to be extended by "klassen" (classes) with the stuetzstellen (gemoetric average correction factors for each class)
+    # target - target value that is the basis for the distribution and the generation of the stuetzstellen
+
+    df$ziel <- target # target is added to df
+    # df$en_cons <- NULL
+
+    # ggplot(df,aes(y = ziel)) + geom_boxplot()
+    ggplot(df, aes(x = ziel)) +
+      geom_density()
+
+    q <- quantile(df$ziel, seq(from = 0.1, to = 0.9, by = 0.1))
+    # q <- quantile(df$ziel, seq(from = 0.05, to = 0.95, by = 0.05))
+    q
+    mi <- min(df$ziel)
+    ma <- max(df$ziel)
+
+    df$klasse <- 0
+    df$klasse <- ifelse(df$ziel <= q[1], 1, df$klasse)
+    df$klasse <- ifelse(df$ziel <= q[2] & df$klasse == 0, 2, df$klasse)
+    df$klasse <- ifelse(df$ziel <= q[3] & df$klasse == 0, 3, df$klasse)
+    df$klasse <- ifelse(df$ziel <= q[4] & df$klasse == 0, 4, df$klasse)
+    df$klasse <- ifelse(df$ziel <= q[5] & df$klasse == 0, 5, df$klasse)
+    df$klasse <- ifelse(df$ziel <= q[6] & df$klasse == 0, 6, df$klasse)
+    df$klasse <- ifelse(df$ziel <= q[7] & df$klasse == 0, 7, df$klasse)
+    df$klasse <- ifelse(df$ziel <= q[8] & df$klasse == 0, 8, df$klasse)
+    df$klasse <- ifelse(df$ziel <= q[9] & df$klasse == 0, 9, df$klasse)
+    df$klasse <- ifelse(df$ziel > q[9] & df$klasse == 0, 10, df$klasse)
+    # df$klasse <- ifelse(df$ziel <= q[10] & df$klasse == 0, 10, df$klasse)
+    # df$klasse <- ifelse(df$ziel <= q[11] & df$klasse == 0, 11, df$klasse)
+    # df$klasse <- ifelse(df$ziel <= q[12] & df$klasse == 0, 12, df$klasse)
+    # df$klasse <- ifelse(df$ziel <= q[13] & df$klasse == 0, 13, df$klasse)
+    # df$klasse <- ifelse(df$ziel <= q[14] & df$klasse == 0, 14, df$klasse)
+    # df$klasse <- ifelse(df$ziel <= q[15] & df$klasse == 0, 15, df$klasse)
+    # df$klasse <- ifelse(df$ziel <= q[16] & df$klasse == 0, 16, df$klasse)
+    # df$klasse <- ifelse(df$ziel <= q[17] & df$klasse == 0, 17, df$klasse)
+    # df$klasse <- ifelse(df$ziel <= q[18] & df$klasse == 0, 18, df$klasse)
+    # df$klasse <- ifelse(df$ziel <= q[19] & df$klasse == 0, 19, df$klasse)
+    # df$klasse <- ifelse(df$ziel > q[19] & df$klasse == 0, 20, df$klasse)
+
+    df$klasse <- as.factor(df$klasse)
+    df$ziel <- NULL
+
+    q <- c(mi, q, ma)
+    stuetzstellen <- q[1:10] + diff(q) / 2
+    # stuetzstellen <- q[1:20] + diff(q)/2
+
+    # saveRDS(stuetzstellen, file="E:/GitHub_Data_Access/stuetzstellen_of_calibration_models.RData")
+    saveRDS(stuetzstellen, file = paste(GitHub_Data_Access, "stuetzstellen_of_calibration_models", ".RData", sep = ""))
+
+    # to read again: readRDS("E:/GitHub_Data_Access/stuetzstellen_of_calibration_models.RData")
+
+    # #print plot DEVIATION V/B
+    # print_path <- paste("Deviation_Measurments_to_Calculations", ".pdf" ,sep = "") #PDF
+    # dev.print(pdf, print_path)
+    # print_path <- paste("Deviation_Measurments_to_Calculations", ".png" ,sep = "") #png
+    # dev.print(png, file=print_path, width=1600, height=900)
+
+    print("Stuetzstellen")
+    print(stuetzstellen)
+    return(stuetzstellen)
+  }
+  ###
+
+
+#_______________________________________________________
+###  Defininig stuetzstellen klassen - classes of correction factor values - based on distribtion ####
+  def.stuetzstellen.klassen <- function(df, target) {
+    # df - Dataframe with variables for later training in caret, that is to be extended by "klassen" (classes) with the stuetzstellen (gemoetric average correction factors for each class)
+    # target - target value that is the basis for the distribution and the generation of the stuetzstellen
+
+    df$ziel <- target # target is added to df
+    # df$en_cons <- NULL
+
+    # ggplot(df,aes(y = ziel)) + geom_boxplot()
+    ggplot(df, aes(x = ziel)) +
+      geom_density()
+
+    q <- quantile(df$ziel, seq(from = 0.1, to = 0.9, by = 0.1))
+    # q <- quantile(df$ziel, seq(from = 0.05, to = 0.95, by = 0.05))
+    q
+    mi <- min(df$ziel)
+    ma <- max(df$ziel)
+
+    df$klasse <- 0
+    df$klasse <- ifelse(df$ziel <= q[1], 1, df$klasse)
+    df$klasse <- ifelse(df$ziel <= q[2] & df$klasse == 0, 2, df$klasse)
+    df$klasse <- ifelse(df$ziel <= q[3] & df$klasse == 0, 3, df$klasse)
+    df$klasse <- ifelse(df$ziel <= q[4] & df$klasse == 0, 4, df$klasse)
+    df$klasse <- ifelse(df$ziel <= q[5] & df$klasse == 0, 5, df$klasse)
+    df$klasse <- ifelse(df$ziel <= q[6] & df$klasse == 0, 6, df$klasse)
+    df$klasse <- ifelse(df$ziel <= q[7] & df$klasse == 0, 7, df$klasse)
+    df$klasse <- ifelse(df$ziel <= q[8] & df$klasse == 0, 8, df$klasse)
+    df$klasse <- ifelse(df$ziel <= q[9] & df$klasse == 0, 9, df$klasse)
+    df$klasse <- ifelse(df$ziel > q[9] & df$klasse == 0, 10, df$klasse)
+    # df$klasse <- ifelse(df$ziel <= q[10] & df$klasse == 0, 10, df$klasse)
+    # df$klasse <- ifelse(df$ziel <= q[11] & df$klasse == 0, 11, df$klasse)
+    # df$klasse <- ifelse(df$ziel <= q[12] & df$klasse == 0, 12, df$klasse)
+    # df$klasse <- ifelse(df$ziel <= q[13] & df$klasse == 0, 13, df$klasse)
+    # df$klasse <- ifelse(df$ziel <= q[14] & df$klasse == 0, 14, df$klasse)
+    # df$klasse <- ifelse(df$ziel <= q[15] & df$klasse == 0, 15, df$klasse)
+    # df$klasse <- ifelse(df$ziel <= q[16] & df$klasse == 0, 16, df$klasse)
+    # df$klasse <- ifelse(df$ziel <= q[17] & df$klasse == 0, 17, df$klasse)
+    # df$klasse <- ifelse(df$ziel <= q[18] & df$klasse == 0, 18, df$klasse)
+    # df$klasse <- ifelse(df$ziel <= q[19] & df$klasse == 0, 19, df$klasse)
+    # df$klasse <- ifelse(df$ziel > q[19] & df$klasse == 0, 20, df$klasse)
+
+    df$klasse <- as.factor(df$klasse)
+    df$ziel <- NULL
+
+    q <- c(mi, q, ma)
+    stuetzstellen <- q[1:10] + diff(q) / 2
+    # stuetzstellen <- q[1:20] + diff(q)/2
+
+    # saveRDS(stuetzstellen, file="E:/GitHub_Data_Access/stuetzstellen_of_calibration_models.RData")
+    # to read again: readRDS("E:/GitHub_Data_Access/stuetzstellen_of_calibration_models.RData")
+
+    print("Classes added to df")
+
+    return(df)
+  }
+###
+
+
+#_______________________________________________________
+### Row dublication in data frame based on row weights to be applied for later weighting e.g. of machine learning model training####
+  row.weight.dublication <- function(weights, df) {
+    # weights - Weights of the cases (rows), HRF in the example of DataNWG
+    # df - dataframe with the rows that are to be dublicated according to the weights
+
+    # library(splitstackshape)
+    weights_standardized <- weights / min(weights) # to reduce the number of rows and calculation time
+    df <- expandRows(df, count = weights_standardized, count.is.col = FALSE)
+    # weights are equal to HRF (not in df, so that not considered in models)
+    # print("cases dublicated accoring to weights")
+    return(df)
+  }
+###
+
+
+
+
+#_______________________________________________________
+### Caret batch k-fold cross-validation training and comparative plotting ####
+  caret.batch.training <- function(Problem_Type, caret_models, df, output, ctrl, met, test_name, specific_demand, specific_consumption, EBF, df_prediction, stuetzstellen) {
+    # VARIBALES
+    # Problem_Type -  Defines the typo of machine learning problem: Either Regression OR Classification
+    # caret_models -  List of models that are to be trained and compared - Vector with model names; https://rdrr.io/cran/caret/man/models.html
+    # df -            Dataframe with data for training. Must include all input and output data. For applying weights, the cases are to be dublicated accordingly
+    # output -        Output variable of models - Variable in df
+    # ctrl -          control sequence defining how caret is to train and test the models
+    #                 e.g. ctrl <- trainControl(method = "repeatedcv", allowParallel = TRUE,  repeats = 5, number = 10, savePredictions = "final")
+    # met -           Defined metric for comparing the models by. Suggestion: Regression Models: "Rsquared", Classification Models: "Accuracy"
+    # test_name -     Name of the training and comparison test. Under this name all the outputs are saved into the working directory
+    # specific_demand - Specific demand of initial data for plot of uncalibrated data: df$en_dem/df$EnergyRefArea_DIBS_BE
+    # specific_consumption - Specific measured consumption of initial data for plot of uncalibrated data: dt$en_cons/dt$EnergyRefArea_DIBS_BE
+    # EBF -           Energy relevant area: dt$EnergyRefArea_DIBS_BE
+    # df_prediction - Dataframe for prediction the measured consumption (is df, without dublications according to weights)
+    # stuetzstellen - Classification class correction factors for prediction and validataion plots
+
+
+
+    # PACKAGES REQUIERED
+    # library(caret)
+
+
+    # Implement empty lists and the running variables
+    i <- length(caret_models)
+    j <- 0
+    model_overview <- list()
+
+    for (model in caret_models) {
+      set.seed(5) # allow reproducability of results
+      j <- j + 1
+
+      # measure time of model training (START)
+      start_time <- Sys.time()
+
+
+      form <- as.formula(paste(as.character(output), " ~ .", sep = "", collapse = ""))
+      # train model
+      results <-
+        caret::train(
+          form,
+          data = df,
+          trControl = ctrl,
+          method =  paste(as.character(model), collapse = ""),
+          # metric = "Accuracy"
+          metric = met
+        )
+
+      # measure time of model training (END)
+      end_time <- Sys.time()
+      modelling_time <- end_time - start_time
+      time_unit <- units(modelling_time)
+
+      saveRDS(results, paste(model, ".rds", sep = "", collapse = ))
+      # load the trained model elswhere use:
+      # my_model <- readRDS("model.rds")
+
+      print(paste("trained model", as.character(model), "in [", time_unit, "]:", modelling_time, collapse = ))
+
+      # transfer the results of this loops go through to list named after the model
+      assign(paste(as.character(model)), results)
+
+      # summarize the different models in one list to handle results later
+      model_overview[[length(model_overview) + 1]] <- get(model)
+    }
+
+    # name models in model_overview list, so that they show correctly in plots etc.
+    i <- 0
+    for (model in caret_models) {
+      i <- i + 1
+      names(model_overview)[i] <- model
+    }
+
+    # generate summary overview of results and sort according to Accuracy
+    results <-
+      resamples(model_overview)
+
+
+    path <- getwd()
+
+    # summarize the distributions
+    print("Results:")
+    print(summary(results))
+
+    # Save summary results in text document
+    sink(paste(path, "//", test_name, "Summary_Results", ".txt", sep = "")) # TESTING
+    # sink("E:/BE_Reg_Verbrauch_Bedarf/H0_Heat/RF_Classification_TEST_Summary_Results.txt")
+    print(summary(results))
+    sink() # returns output to the console
+
+
+    # give timings of models
+    print("Timings:")
+    print(results$timings)
+
+    # Save modelling times in text document
+    sink(paste(path, "//", test_name, "Modelling_Time_Summary", ".txt", sep = "")) # TESTING
+    # sink("E:/BE_Reg_Verbrauch_Bedarf/H0_Heat/RF_Classification_TEST_Summary_Results.txt")
+    print(results$timings)
+    sink() # returns output to the console
+
+    # ..........................................
+    # comparison of model prediction via plots####
+    # ..........................................
+    par(mfrow = c(round(((length(caret_models) + 1) / 6) + 0.49), 6)) # Grafik ausma(aeoeuesss)e an Modelanzahl Anpassen # Potrait 5 cols
+
+    # 1: Verbrauch zu Bedarf ohne Predict
+    plot(specific_demand, specific_consumption, main = "DIBS demand", ylab = "Measurment", xlab = "DIBS", xlim = c(0, 600), ylim = c(0, 600)) # Verbrauch zu Bedarf
+    abline(0, 1, col = "blue")
+    abline(0, 2, col = "green")
+    abline(0, 0.5, col = "green")
+
+    # 2: All tested models mit predict
+    for (model in caret_models) {
+      predict_output <- predict.train(get(model), df_prediction, se.fit = FALSE)
+      if (Problem_Type == "Regression") {
+        rounded_predict <- round(predict_output / EBF, digits = 4)
+        if (target_name == "delta_b_v") {
+          rounded_predict <- round((df$en_dem - predict_output) / EBF, digits = 4)
+        }
+        if (target_name == "delta_b_v_percentage") {
+          rounded_predict <- round((df$en_dem - ((predict_output / 100) * df$en_dem)) / EBF, digits = 4)
+        }
+      } else {
+        rounded_predict <- round(stuetzstellen[predict_output] * specific_demand, digits = 4)
+      }
+      plot(rounded_predict, specific_consumption, main = paste(as.character(model), collapse = ""), ylab = "Measurment", xlab = paste("DIBS cor. by ", as.character(model), collapse = " "), xlim = c(0, 600), ylim = c(0, 600)) # Verbrauch zu Kalibriertem-Bedarf
+      abline(0, 1, col = "blue")
+      abline(0, 2, col = "green")
+      abline(0, 0.5, col = "green")
+    }
+
+    par(mfrow = c(1, 1)) # Grafikfenster zu einem zur(aeoeuesss)cksetzen
+
+    # print plot
+    print_path <- paste(test_name, "Plots_Summary", ".pdf", sep = "") # PDF
+    dev.print(pdf, print_path)
+
+    print_path <- paste(test_name, "Plots_Summary", ".png", sep = "") # png
+    # dev.print(png, file=print_path, width=1600, height=900) # Horizontal
+    dev.print(png, file = print_path, width = 900, height = 1600) # Potrait
+
+    saveRDS(results, file = paste(path, "//", test_name, "Model_Training_RESULTS", ".RData", sep = ""))
+    return(results)
+
+      # #..........................................
+      # # comparison of model prediction via individual plots####
+      # #..........................................
+
+      # # here the individual plots of the coparing plot above are indivdually ploted and saved!
+
+      # # 1: Verbrauch zu Bedarf ohne Predict
+      # plot(specific_demand, specific_consumption, main = "DIBS demand", ylab = "Measurment", xlab = "DIBS", xlim=c(0,600), ylim=c(0,600)) # Verbrauch zu Bedarf
+      # abline(0,1,col="blue")
+      # abline(0,2,col="green")
+      # abline(0,0.5,col="green")
+      # #print plot
+      # print_path <- paste(test_name, "DIBS_", "Plot", ".pdf" ,sep = "") #PDF
+      # dev.print(pdf, print_path)
+      #   print_path <- paste(test_name, "DIBS_", ".png" ,sep = "") #png
+      # dev.print(png, file=print_path, width=900, height=900)
+
+
+      # # 2: All tested models mit predict
+      # for(model in caret_models){
+      #   predict_output <- predict.train(get(model), df_prediction, se.fit = FALSE)
+      #   if (Problem_Type == "Regression") {
+      #     rounded_predict <- round(predict_output/EBF, digits = 4)
+      #     if(target_name == "delta_b_v"){
+      #       rounded_predict <- round((df$en_dem - predict_output)/EBF, digits = 4)
+      #     }
+      #     if(target_name == "delta_b_v_percentage"){
+      #       rounded_predict <- round((df$en_dem - ((predict_output/100)*df$en_dem))/EBF, digits = 4)
+      #     }
+      #   } else {
+      #     rounded_predict <- round(stuetzstellen[predict_output] * specific_demand, digits = 4)
+      #   }
+      #   plot(rounded_predict, specific_consumption, main = paste(as.character(model), collapse = ""), ylab = "Measurment", xlab = paste("DIBS cor. by ", as.character(model), collapse = " "), xlim=c(0,600), ylim=c(0,600)) # Verbrauch zu Kalibriertem-Bedarf
+      #   abline(0,1,col="blue")
+      #   abline(0,2,col="green")
+      #   abline(0,0.5,col="green")
+      #   #print plot
+      #   print_path <- paste(test_name, model, "_", "Plot", ".pdf" ,sep = "") #PDF
+      #   dev.print(pdf, print_path)
+      #   print_path <- paste(test_name, model, "_", "Plot", ".png" ,sep = "") #png
+      #   dev.print(png, file=print_path, width=900, height=900) # Potrait
+      # }
+  }
+###
