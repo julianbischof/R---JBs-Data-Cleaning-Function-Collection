@@ -423,7 +423,7 @@ dataset$m_to_c <- m_to_c
     dataset_outliers$uk_geb_BE
     dataset_outliers$m_to_c
 
-    Comparison <- as.data.frame(dataset_outliers$GebäudeID)
+    Comparison <- as.data.frame(dataset_outliers$GebÃ¤udeID)
     Comparison$uk_geb_BE <- dataset_outliers$uk_geb_BE
     # Comparison$hk_geb_BE <- dataset_outliers$hk_geb_BE
     Comparison$m_to_c <- dataset_outliers$m_to_c
