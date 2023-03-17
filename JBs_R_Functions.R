@@ -6,9 +6,9 @@
 #
 # Julian Bischof
 # 2022.10.31
-# Encoding: ISO-8859-1
+# Encoding: URF-8
 #
-#Diese Samlung beinhaltet h‰ufig genutzte Funktionen 
+#Diese Samlung beinhaltet h√§ufig genutzte Funktionen 
 #aus eigener und fremder Entwicklung
 #
 # Fremdentwicklung ist entsprechend gekennzeichnet
@@ -107,8 +107,8 @@ Mode <- function(x) {
 ### DataNWG-BRE weighted dice for imputation of missing (-7) factor values ####
 ### Julian Bischof
 
-### Leider sehr langsam beim ¸berschreiben von Werten. In der Version ohne Funktion geht das ¸ber Boolean Filter und ist sehr schnell
-### Der Boolean Filter hat hat in der Funktion irgendwie nicht funktioniert und die Zellen werden nun einzeln gepr¸ft und ¸berschrieben
+### Leider sehr langsam beim √ºberschreiben von Werten. In der Version ohne Funktion geht das √ºber Boolean Filter und ist sehr schnell
+### Der Boolean Filter hat hat in der Funktion irgendwie nicht funktioniert und die Zellen werden nun einzeln gepr√ºft und √ºberschrieben
 
 ### NEED of Improvement
 
@@ -135,47 +135,47 @@ bre.wighted.dice <- function(DB_BE_df, Cluster_Variable, Predictor_Variable, Pre
     # Sum_HRF_vector_BE = Sum_HRF_BE
     
   
-    # Gewichteter W¸rfel(sample) mit HRF_vector und normiert nach Cluster_Variable f¸r alle Predictor_Variable mit -7 und Cluster_Variable >= 0
+    # Gewichteter W√ºrfel(sample) mit HRF_vector und normiert nach Cluster_Variable f√ºr alle Predictor_Variable mit -7 und Cluster_Variable >= 0
     Nrow_DB_BE_df <- as.vector(nrow(DB_BE_df))                                              # Count number of rows in DB_BE_df
     class(Cluster_Variable)
     #class(DB_BE_df$Cluster_Variable_Name)                                                  # Check the data class of a vector
     levels_Cluster_Variable <- levels(as.factor(Cluster_Variable))
-    #levels_Cluster_Variable <- levels(as.factor(DB_BE_df$Cluster_Variable_Name))           # listet die Auspr‰gungen von factor vectoren auf
+    #levels_Cluster_Variable <- levels(as.factor(DB_BE_df$Cluster_Variable_Name))           # listet die Auspr√§gungen von factor vectoren auf
     
-    # Gewichtung (A) und Ausw¸rfeln (B) f¸r jede Auspr‰gung von Cluster_Variable
+    # Gewichtung (A) und Ausw√ºrfeln (B) f√ºr jede Auspr√§gung von Cluster_Variable
     for (i in levels_Cluster_Variable){
-      t <- as.data.frame(table(Predictor_Variable[Cluster_Variable==i]))                    # schreibt Auspr‰gungen und ihre H‰ufigkeiten in df
+      t <- as.data.frame(table(Predictor_Variable[Cluster_Variable==i]))                    # schreibt Auspr√§gungen und ihre H√§ufigkeiten in df
       Nrow_t <- nrow(t)                                                                     # ermittelt die Anzahl der zeilen in t
       
       
-      # A: Gewichtung der H‰ufigkeit der Auspr‰gungen der Predictor_Variable in der Teilmenge Cluster_Variable==i, ¸ber normierte HRF_vector
-      for(a in 1:Nrow_t){                                                                                                             # For-Schleife ¸ber alle Zeilen von t und damit ¸ber alle Auspr‰gungen(levels)
+      # A: Gewichtung der H√§ufigkeit der Auspr√§gungen der Predictor_Variable in der Teilmenge Cluster_Variable==i, √ºber normierte HRF_vector
+      for(a in 1:Nrow_t){                                                                                                             # For-Schleife √ºber alle Zeilen von t und damit √ºber alle Auspr√§gungen(levels)
         Predictor_Variable_Cluster_Variable_i <- Predictor_Variable[Cluster_Variable==i]                                              # Predictor_Variableen in der Teilmenge Cluster_Variable == i
         HRF_vector_Cluster_Variable_i <- HRF_vector[Cluster_Variable==i]                                                              # HRF_vector (Hochrechnungsfaktor der Breitenerhebung) zur Teilmenge Cluster_Variable == i
         Predictor_Variable_Cluster_Variable_i_a <- Predictor_Variable_Cluster_Variable_i[Predictor_Variable_Cluster_Variable_i==a]    # Predictor_Variableen a in der Teilmenge Cluster_Variable == i
         HRF_vector_Cluster_Variable_i_a <- HRF_vector_Cluster_Variable_i[Predictor_Variable_Cluster_Variable_i==a]                    # HRF_vector der Predictor_Variableen a in der Teilmenge Cluster_Variable == i
         #Sum_norm_HRF_vector_Cluster_Variable_i_a <- sum(HRF_vector_Cluster_Variable_i_a)/Sum_HRF_vector_BE
-        Sum_HRF_vector_Cluster_Variable_i_a <- sum(HRF_vector_Cluster_Variable_i_a)                                                   # F¸r Freq_t kann die Normierung eigentlich auch wegfallen, da es um das Ziehungsverh‰ltniss geht
+        Sum_HRF_vector_Cluster_Variable_i_a <- sum(HRF_vector_Cluster_Variable_i_a)                                                   # F√ºr Freq_t kann die Normierung eigentlich auch wegfallen, da es um das Ziehungsverh√§ltniss geht
         t$Freq[t$Var1==a] <- t$Freq[t$Var1==a]*Sum_HRF_vector_Cluster_Variable_i_a/Sum_HRF_vector_BE                                  #Normierung auf NWG Anzahl
       }
       
-      Freq_t <- t[ ,2]                                                                      # H‰ufigkeitenfektor f¸r sample probability (prob)
+      Freq_t <- t[ ,2]                                                                      # H√§ufigkeitenfektor f√ºr sample probability (prob)
       levels_Predictor_Variable__Cluster_Variable_i <- levels(as.factor(Predictor_Variable[Cluster_Variable==i]))
-      #u <- sample(levels_Predictor_Variable__Cluster_Variable_i, size = 1, replace = TRUE, prob = Freq_t) # Test-W¸rfel
+      #u <- sample(levels_Predictor_Variable__Cluster_Variable_i, size = 1, replace = TRUE, prob = Freq_t) # Test-W√ºrfel
       #DB_BE_df$Predictor_Variable[DB_BE_df$Predictor_Variable==(-7) & DB_BE_df$Cluster_Variable==i] <- sample(levels_Predictor_Variable__Cluster_Variable_i, size = 1, replace = TRUE, prob = Freq_t)
       
       
-      # B: Gewichtetes Sample zur Ausw¸rfeln der Predictor_Variable im Fall, dass Predictor_Variable==-7 und Cluster_Variable=i
-      # Schnellerer Part, funktioniert ¸ber Funktion nicht
-      # for (j in 1:Nrow_DB_BE_df) {                                              # Pr¸ft jede Zeile in DB_BE_df ob DB_BE_df$Predictor_Variable[j]==(-7) & DB_BE_df$Cluster_Variable[j]==i
+      # B: Gewichtetes Sample zur Ausw√ºrfeln der Predictor_Variable im Fall, dass Predictor_Variable==-7 und Cluster_Variable=i
+      # Schnellerer Part, funktioniert √ºber Funktion nicht
+      # for (j in 1:Nrow_DB_BE_df) {                                              # Pr√ºft jede Zeile in DB_BE_df ob DB_BE_df$Predictor_Variable[j]==(-7) & DB_BE_df$Cluster_Variable[j]==i
       #   if(DB_BE_df$Predictor_Variable_Name[j]==(-7) & DB_BE_df$Cluster_Variable[j]==i){
-      #     DB_BE_df$Predictor_Variable_Name[j] <- sample(levels_Predictor_Variable__Cluster_Variable_i, size = 1, replace = TRUE, prob = Freq_t) # Wenn bedingung (if) TRUE wird f¸r die Zeile(j) und die Cluster_Variable(i) ein Sample gezogen
+      #     DB_BE_df$Predictor_Variable_Name[j] <- sample(levels_Predictor_Variable__Cluster_Variable_i, size = 1, replace = TRUE, prob = Freq_t) # Wenn bedingung (if) TRUE wird f√ºr die Zeile(j) und die Cluster_Variable(i) ein Sample gezogen
       #   }
       
       
-        for (j in 1:Nrow_DB_BE_df) {                                                                                                              # Pr¸ft jede Zeile in DB_BE_df ob DB_BE_df$Predictor_Variable[j]==(-7) & DB_BE_df$Cluster_Variable[j]==i
+        for (j in 1:Nrow_DB_BE_df) {                                                                                                              # Pr√ºft jede Zeile in DB_BE_df ob DB_BE_df$Predictor_Variable[j]==(-7) & DB_BE_df$Cluster_Variable[j]==i
           if(DB_BE_df[j,Predictor_Variable_Name]==(-7) & DB_BE_df[j,Cluster_Variable]==i){
-            DB_BE_df[j,Predictor_Variable_Name] <- sample(levels_Predictor_Variable__Cluster_Variable_i, size = 1, replace = TRUE, prob = Freq_t) # Wenn bedingung (if) TRUE wird f¸r die Zeile(j) und die Cluster_Variable(i) ein Sample gezogen
+            DB_BE_df[j,Predictor_Variable_Name] <- sample(levels_Predictor_Variable__Cluster_Variable_i, size = 1, replace = TRUE, prob = Freq_t) # Wenn bedingung (if) TRUE wird f√ºr die Zeile(j) und die Cluster_Variable(i) ein Sample gezogen
           }
       }
     }
@@ -234,12 +234,12 @@ model_equation <- function(model, ...) {
 # 2020.12.18
 # Doku to the right! --> 
 variable.with.certain.values <- function(df, cells.input, ...){                      # df = to be searched dataframe; cells.input = Such-Value
-  df.with.certain.value <- df==cells.input                                           # Pr¸ft ob value in Variable vorliegt
+  df.with.certain.value <- df==cells.input                                           # Pr√ºft ob value in Variable vorliegt
   df.with.certain.value <- as.data.frame(df.with.certain.value)                      # Wandelt die Boolean Matrix in Dataframe um
   
-  df.with.certain.value.Summary <- summarise_each(df.with.certain.value, funs(mean)) # Bildet Mittelwerte ¸ber Boolean-Variablen
+  df.with.certain.value.Summary <- summarise_each(df.with.certain.value, funs(mean)) # Bildet Mittelwerte √ºber Boolean-Variablen
   
-  n_cols_df <- ncol(df)                                                              # Z‰hlt Spaltenanzahl in Dataframe
+  n_cols_df <- ncol(df)                                                              # Z√§hlt Spaltenanzahl in Dataframe
   
   for (i in 1:n_cols_df) {
     
@@ -289,7 +289,7 @@ library(relaimpo)
 
 # function definition [R in Action, Kabacoff] Page 216
 # relweights(regression_data, col="lightgray") 
-#Ausf¸hren der definierten Funktion der Bewertung der relativen Wichtigkeit der Variablen
+#Ausf√ºhren der definierten Funktion der Bewertung der relativen Wichtigkeit der Variablen
 relweights <-
   function(fit,...){                         
     R <- cor(fit$model)   
@@ -341,7 +341,7 @@ Compare.Variation <- function(x, y, namex, namey, histfrom, histto, histby){
   
   path <- paste(wd,"/",namex,".png", sep="")  #definiert ablagepfad und name der zu speichernden Grafik unter Working Directory
   png(file=path,    
-      width=1200, height=600)                 #Speichert Grafik in der angegebenen Auflˆsung
+      width=1200, height=600)                 #Speichert Grafik in der angegebenen Aufl√∂sung
   par(mfrow=c(3, 1))                          #Aufteilen Graphik-Fenster
   hist(y, hist_sequence, main=paste("Histogram of ",namey), xlab=namey, labels = as.character(round(y_verteilung,2)))
   hist(x, hist_sequence, main=paste("Histogram of ",namex), xlab=namex, labels = as.character(round(x_verteilung,2)))
@@ -423,7 +423,7 @@ dataset$m_to_c <- m_to_c
     dataset_outliers$uk_geb_BE
     dataset_outliers$m_to_c
 
-    Comparison <- as.data.frame(dataset_outliers$Geb‰udeID)
+    Comparison <- as.data.frame(dataset_outliers$Geb√§udeID)
     Comparison$uk_geb_BE <- dataset_outliers$uk_geb_BE
     # Comparison$hk_geb_BE <- dataset_outliers$hk_geb_BE
     Comparison$m_to_c <- dataset_outliers$m_to_c
