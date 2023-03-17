@@ -617,9 +617,11 @@ extrapolation.DE.quantitiy.energy <-
 
 #_______________________________________________________
 ###  Repetitive linear regression application for determination the significant variables ####
-  significant.variables <- function(dt, target, target_vector) {
+  significant.variables <- function(dt, target, target_vector, weights) {
     # dt - dataframe with target variable and predictor variables to be tested on their significance
     # target - target variable
+    # target_vector
+    # weights HRF must be set before
 
 
     ### Klassisch linear, um relevante Spalten herauszufinden
