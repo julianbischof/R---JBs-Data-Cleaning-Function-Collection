@@ -610,6 +610,12 @@ extrapolation.DE.quantitiy.energy <-
 
           return(df[, 1:6]) # return data frame including significant variable combinations
         }
+        # skript for identifying error causing variables (not right data type)
+                # for(i in 1:length(c1)){
+                # print(c1[i])
+                # print(c2[i])
+                # anova_auswertung(dt, c1[i], c2[i], target)
+                # }
       }
 ###
 
