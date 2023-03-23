@@ -928,7 +928,7 @@ extrapolation.DE.quantitiy.energy <-
       modelling_time <- end_time - start_time
       time_unit <- units(modelling_time)
 
-      saveRDS(results, paste(model, ".rds", sep = "", collapse = ))
+      saveRDS(results, paste(model, "__", test_name, ".rds", sep = "", collapse = )) # added: 2023.03.23: "__", test_name,
       # load the trained model elswhere use:
       # my_model <- readRDS("model.rds")
 
