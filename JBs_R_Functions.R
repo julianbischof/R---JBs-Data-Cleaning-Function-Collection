@@ -623,11 +623,12 @@ extrapolation.DE.quantitiy.energy <-
 
 #_______________________________________________________
 ###  Repetitive linear regression application for determination the significant variables ####
-  significant.variables <- function(dt, target, target_vector, weights) {
+  significant.variables <- function(dt, target, target_vector, weights, name) {
     # dt - dataframe with target variable and predictor variables to be tested on their significance
     # target - target variable
     # target_vector
     # weights HRF must be set before
+    # name under which results are saved in tex table and RData
 
 
     ### Klassisch linear, um relevante Spalten herauszufinden
@@ -711,10 +712,10 @@ extrapolation.DE.quantitiy.energy <-
     print(summary(lm_2))
 
     path <- getwd()
-    saveRDS(Relevant_Variables, file = paste(path, "//", "Relevant_Variables", ".RData", sep = ""))
+    saveRDS(Relevant_Variables, file = paste(path, "//", name, "_Relevant_Variables", ".RData", sep = ""))
 
     library(xtable)
-    print(xtable(Relevant_Variables, type = "latex"), file = paste(path, "//", "Relevant_Variables", ".tex", sep = ""))
+    print(xtable(Relevant_Variables, type = "latex"), file = paste(path, "//", name, "_Relevant_Variables", ".tex", sep = ""))
 
 
     # RMSE
