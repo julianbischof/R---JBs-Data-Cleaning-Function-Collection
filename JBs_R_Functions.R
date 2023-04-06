@@ -687,7 +687,7 @@ extrapolation.DE.quantitiy.energy <-
       anz_col_vorher <- dim(dt)[2]
       dt <- dt[, v, with = FALSE]
       # add target varible in case it was eliminated in this process
-      if (target == "delta_b_v") {
+      if (target == "delta") {
         # dt$delta_b_v <- target_vector
         dt$delta <- target_vector
       }
