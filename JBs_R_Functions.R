@@ -688,7 +688,8 @@ extrapolation.DE.quantitiy.energy <-
       dt <- dt[, v, with = FALSE]
       # add target varible in case it was eliminated in this process
       if (target == "delta_b_v") {
-        dt$delta_b_v <- target_vector
+        # dt$delta_b_v <- target_vector
+        dt$delta <- target_vector
       }
       if (target == "delta_b_v_percentage") {
         dt$delta_b_v_percentage <- target_vector
