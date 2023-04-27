@@ -691,6 +691,10 @@ extrapolation.DE.quantitiy.energy <-
         # dt$delta_b_v <- target_vector
         dt$delta <- target_vector
       }
+      if (target == "ratio") {
+        # dt$delta_b_v <- target_vector
+        dt$ratio <- target_vector
+      }
       if (target == "delta_b_v_percentage") {
         dt$delta_b_v_percentage <- target_vector
       }
