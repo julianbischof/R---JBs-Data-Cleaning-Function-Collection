@@ -403,6 +403,12 @@ upper_outlier_percentile){
 
 m_to_c <- as.double(measurement) / as.double(calculation) # define ratio
 
+print("Minimum Ratio")
+print(min(m_to_c))
+
+print("Maximum Ratio")
+print(max(m_to_c))
+
 # Number of objects with measured consumption greater than the calculated demand
 number_m_to_c_above <- length(m_to_c[m_to_c > 1])
 # Number of objects with measured consumption smaller than the calculated demand
@@ -410,7 +416,7 @@ number_m_to_c_below <- length(m_to_c[m_to_c < 1])
 
 # Determination of the upper Faktor based on the upper_outlier_percentile
 Faktor <- sort(m_to_c)[upper_outlier_percentile * length(m_to_c)] # by representing value
-print("Upper outlier percentile factor:")
+print("Upper outlier percentile factor/ratio:")
 print(Faktor)
 
 # Determination of the lower Faktor based on the upper "Faktor" based on the ratios of the sample above and below 1
@@ -419,6 +425,8 @@ print("Lower outlier factor (based on upper percentile definition):")
 print(lowerFaktor)
 
 EinsdurchFaktor <- 1 / lowerFaktor
+print("Lower outlier RATIO (based on upper percentile definition):")
+print(EinsdurchFaktor)
 
 dataset$m_to_c <- m_to_c
 
