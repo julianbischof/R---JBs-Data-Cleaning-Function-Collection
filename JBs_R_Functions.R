@@ -395,8 +395,7 @@ ratio.based.outlier.removal <-
 function(dataset, 
 measurement, 
 calculation, 
-upper_outlier_percentile,
-test_name){
+upper_outlier_percentile){
 # dataset: Dataframe of the dataset that is to be cleaned of outliers (removal of outlier cases)
 # measurement: Vector of measured value of that determines the reality
 # calculation: Vector of calculated value that generally tries to predict the measured value 
@@ -447,11 +446,6 @@ dataset$m_to_c <- m_to_c
 print("The plot shows the densitiy of the ratio between the measuerd values (M) and the calculated values (C) -> m_to_c.")
 ggplot(dataset, aes(x = m_to_c)) +
     geom_density()
-
-print_path <- paste(test_name, "_Deviation_Measurments_to_Calculations", ".pdf", sep = "") # PDF
-        dev.print(pdf, print_path)
-        print_path <- paste(test_name, "_Deviation_Measurments_to_Calculations", ".png", sep = "") # png
-        dev.print(png, file = print_path, width = 1600, height = 900)
 
 # mean(m_to_c)
 
